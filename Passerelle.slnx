@@ -1,0 +1,5 @@
+<Solution>
+  <Project Path="src/Passerelle/Passerelle.csproj" />
+  <Project Path="tests/Passerelle.Tests/Passerelle.Tests.csproj" />
+  <Project Path="samples/RelayEcho/RelayEcho.csproj" />
+</Solution>
