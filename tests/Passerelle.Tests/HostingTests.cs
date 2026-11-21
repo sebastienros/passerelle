@@ -311,6 +311,33 @@ public sealed class HostingTests
         Assert.Equal(cancel ? 503 : 200, request.Status);
     }
 
+    [Fact]
+    public async Task Serves_local_and_relay_requests_concurrently_through_one_pipeline()
+    {
+        var (app, listener) = Build(keepLocal: true);
+        await using var host = app;
+        var relayArrived = Signal();
+        var localArrived = Signal();
+        app.MapGet("/wait/{source}", async (string source) =>
+        {
+            // Each request completes only once the other path is in flight at the same time.
+            (source == "relay" ? relayArrived : localArrived).TrySetResult();
+            await (source == "relay" ? localArrived : relayArrived).Task.WaitAsync(Deadline);
+            return source;
+        });
+        await app.StartAsync();
+
+        var relay = listener.Send("/bench/agent/wait/relay");
+        var address = app.Services.GetRequiredService<IServer>().Features.Get<IServerAddressesFeature>()!.Addresses;
+        using var client = new HttpClient { BaseAddress = new Uri(Assert.Single(address)) };
+        var local = client.GetStringAsync("/wait/local");
+
+        Assert.Equal("local", await local.WaitAsync(Deadline));
+        await relay.Closed.WaitAsync(Deadline);
+        Assert.Equal(200, relay.Status);
+        Assert.Equal("relay", Encoding.UTF8.GetString(relay.Output.ToArray()));
+    }
+
     private static (WebApplication, FakeListener) Build(bool keepLocal = false, long? limit = null)
     {
         var listener = new FakeListener();
