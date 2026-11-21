@@ -84,3 +84,9 @@ dotnet build Passerelle.slnx -c Release
 dotnet test Passerelle.slnx -c Release --no-build
 dotnet pack src/Passerelle -c Release --no-build -o artifacts
 ```
+
+## Publishing
+
+Pull requests are tested on Linux, macOS, and Windows. Builds on `main` produce a package as a GitHub Actions artifact without publishing it. A semantic version tag such as `v0.1.0` or `v0.1.0-preview.1`, pointing to a commit on `main`, runs the tests and publishes the tagged package to NuGet.org.
+
+Before the first release, configure NuGet.org trusted publishing for the `sebastienros` NuGet account with repository owner `sebastienros`, repository `passerelle`, workflow file `publish.yml`, and GitHub environment `release`. Grant the policy permission to publish the `Passerelle` package and new versions. The workflow uses a short-lived OIDC credential; no NuGet API key needs to be stored in GitHub.
