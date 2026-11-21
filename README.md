@@ -71,6 +71,8 @@ Passerelle supports one Hybrid Connection per host, request/response streams and
 
 The adapter does not buffer entire bodies. The Relay SDK can buffer a small response on its control channel and its flush is a no-op there; ASP.NET Core `StartAsync` and `FlushAsync` commit response headers at the adapter, not necessarily at the sender. The SDK represents wire header values as strings, so independently repeated fields that cannot be comma-joined (such as multiple `Set-Cookie` fields) are not supported. The Relay service does not forward the sender's `Content-Length` request header, so `Request.ContentLength` is typically `null` for relayed requests and the size limit is enforced while the body is read. Response completion after a failed write is best-effort. `RequestAborted` is signaled on application abort, detectable stream I/O failure, or expiry of the shutdown deadline; the SDK has no independent sender-disconnect notification or public per-response transport abort.
 
+Do not rely on simultaneous bidirectional HTTP streaming through Relay. In live testing, an 8 MB echo that wrote the response while reading the request intermittently returned a Relay 500; the same failure also occurred with a direct Relay SDK listener. A client reading and sending concurrently did not avoid it. The precise cause within the SDK or service is unknown. To avoid this pattern, consume the request before writing the response, using disk-backed storage if necessary.
+
 ## Build and test
 
 Install the .NET 11 SDK and both ASP.NET Core runtimes. The integration tests run the ASP.NET Core pipeline against an in-process Relay transport, with real Kestrel for the coexistence case. They require no Azure account and do not validate the Azure wire protocol.
