@@ -1,6 +1,6 @@
 # Passerelle
 
-Passerelle hosts an ASP.NET Core HTTP application over [Azure Relay Hybrid Connections](https://learn.microsoft.com/azure/azure-relay/relay-hybrid-connections-protocol). It uses `Microsoft.Azure.Relay` for the wire protocol and focuses on the HTTP features used by [Crank](https://github.com/dotnet/crank). It targets .NET 10 and .NET 11 only.
+Passerelle hosts an ASP.NET Core HTTP application over [Azure Relay Hybrid Connections](https://learn.microsoft.com/azure/azure-relay/relay-hybrid-connections-protocol). It uses `Microsoft.Azure.Relay` for the wire protocol and targets .NET 10 and .NET 11 only.
 
 ## Host an application
 
@@ -36,11 +36,17 @@ curl -f --data-binary 'hello' http://127.0.0.1:5080/echo
 
 Omit `--Relay:LocalOnly=true` and supply `Relay__ConnectionString` to exercise Azure Relay. To keep Kestrel in that mode, add `--Relay:KeepLocalHttp=true`. For a live smoke test, call `/health` and POST a file to `/echo` using the entity's HTTPS URL and the appropriate **sender** credential, then compare the echoed bytes.
 
-## Crank migration
+## Migrating from legacy Relay hosting
 
-1. Replace the legacy ASP.NET Core Relay package reference with Passerelle in a Crank agent targeting .NET 10 or .NET 11. Keep the existing no-Relay branch and `UseKestrel` configuration.
-2. Switch from `UseAzureRelay` to `UsePasserelle`, or `AddPasserelle` when `--relay-enable-http` is set. Remove the old `CompositeServer` and its DI service-descriptor rewriting. Keep resolving the existing connection string or environment-variable name and applying `--relay-path` with `RelayConnectionStringBuilder`. For SAS, set `options.ConnectionString` to the resulting entity-specific string. For identity or certificate auth, pass `options.Address = new Uri(rcsb.Endpoint, rcsb.EntityPath)` and `options.TokenProvider = provider` instead.
-3. Set the Relay size limit independently if needed (`options.MaxRequestBodySize = 10L * 1024 * 1024 * 1024` matches the agent's Kestrel default). Crank's existing upload action attributes can override the limit before reading. The default is 30,000,000 bytes; `null` disables the adapter's limit. It counts wire body bytes before app-level gzip decoding, and enforces the limit when the application reads the body. Azure Relay limits still apply.
+Replace the legacy ASP.NET Core Relay package reference with Passerelle in an application targeting .NET 10 or .NET 11. Switch from `UseAzureRelay` to `UsePasserelle`, or use `AddPasserelle` to keep Kestrel alongside Relay without a custom composite server.
+
+For SAS, set `options.ConnectionString` to the entity-specific string. For identity or certificate authentication, set `options.Address` to the entity's `sb://` URI and `options.TokenProvider` to the configured provider.
+
+Set `options.MaxRequestBodySize` independently of Kestrel's limit if needed. Endpoint request-size attributes can override it before reading. The default is 30,000,000 bytes; `null` disables the adapter's limit. It counts wire body bytes before app-level gzip decoding, and enforces the limit when the application reads the body. Azure Relay limits still apply.
+
+## Projects using Passerelle
+
+- [Crank](https://github.com/dotnet/crank) is a planned integration; it does not yet use Passerelle.
 
 ## Scope and limits
 
